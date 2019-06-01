@@ -33,9 +33,9 @@ def data():
     items, categories, sales, shops = loadData()
     mergedData = mergeData(items, categories, sales, shops)
     finalData = mergedData.drop(labels=["item_category_name",
-                            "item_name",
-                            "shop_name"],
-                    axis=1)
+                                        "item_name",
+                                        "shop_name"],
+                                axis=1)
     return finalData
 
 
@@ -44,23 +44,22 @@ def weekday(date):
     return (calendar.day_name[day])
 
 
-def encode_to_cycle(x, fmap):
-    degrees = np.deg2rad(90 + 360 / fmap(x))
+def cyclic_encoder(x, fmap, total_x):
+    degrees = np.deg2rad(90 + (360 / total_x) * fmap(x))
     return (np.cos(degrees), np.sin(degrees))
 
 
 def encode_weekday(weekday):
-    days = lambda x: {"Sunday": 1,
-                      "Monday": 2,
-                      "Tuesday": 3,
-                      "Wednesday": 4,
-                      "Thursday": 5,
-                      "Friday": 6,
-                      "Saturday": 7}[x]
-    return encode_to_cycle(weekday, days)
+    days = lambda x: {"Sunday": 0,
+                      "Monday": 1,
+                      "Tuesday": 2,
+                      "Wednesday": 3,
+                      "Thursday": 4,
+                      "Friday": 5,
+                      "Saturday": 6}[x]
+    return cyclic_encoder(weekday, days, 7)
 
-
-def encode_months(month):
-    encode_to_cycle(month, identity)
+def encode_month(month):
+    return cyclic_encoder(month - 1, lambda x: x, 12)
 
 
