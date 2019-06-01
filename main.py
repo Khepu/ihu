@@ -7,10 +7,10 @@ def merge(left, right, left_label, right_label=False):
     return left.merge(right, "inner", left_on=left_label, right_on=(right_label if right_label else left_label))
 
 def loadData():
-    items = pd.read_csv("./items.csv")
-    categories = pd.read_csv("./item_categories.csv")
-    sales = pd.read_csv("./sales_train_v2.csv")
-    shops = pd.read_csv("./shops.csv")
+    items = pd.read_csv("./dataset/items.csv")
+    categories = pd.read_csv("./dataset/item_categories.csv")
+    sales = pd.read_csv("./dataset/sales_train_v2.csv")
+    shops = pd.read_csv("./dataset/shops.csv")
 
     return [items, categories, sales, shops]
 
