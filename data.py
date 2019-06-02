@@ -3,7 +3,8 @@ import numpy as np
 import datetime
 import calendar
 
-from functools import reduce
+from functools import reduce, lru_cache
+from helpers import identity, append, mapl, mapt, add_key
 
 
 def merge(left, right, left_label, right_label=False):
@@ -28,17 +29,6 @@ def mergeData(items, categories, sales, shops):
     return reduce(lambda acc, val: merge(acc, val[0], val[1]), join_table_info, items)
 
 
-def data():
-    #data is not printable due to russian characters
-    items, categories, sales, shops = loadData()
-    mergedData = mergeData(items, categories, sales, shops)
-    finalData = mergedData.drop(labels=["item_category_name",
-                                        "item_name",
-                                        "shop_name"],
-                                axis=1)
-    return finalData
-
-
 def weekday(date):
     day = datetime.datetime.strptime(date, '%d.%m.%Y').weekday()
     return (calendar.day_name[day])
@@ -59,7 +49,49 @@ def encode_weekday(weekday):
                       "Saturday": 6}[x]
     return cyclic_encoder(weekday, days, 7)
 
-def encode_month(month):
-    return cyclic_encoder(month - 1, lambda x: x, 12)
 
+def encode_month(month):
+    return cyclic_encoder(month - 1, identity, 12)
+
+
+def split_date(date):
+    date_tuple = mapt(int, date.split("."))
+    date_tuple = append(date_tuple, encode_month(date_tuple[1]))
+    date_tuple = append(date_tuple, encode_weekday(weekday(date)))
+
+    return date_tuple
+
+
+def add_city_column(shops):
+    shops["city"] = shops["shop_name"].apply(lambda s: s.split(" ")[0])
+    #Grabbing unique cities
+    cities_set = set(shops["shop_name"].apply(lambda s: s.split(" ")[0]))
+
+    #Indexing
+    cities_indexed = zip(cities, range(len(cities_set)))
+
+    #Pushing to dictionary {"city" : index}
+    cities_dict = reduce(lambda dic, c: add_key(dic, c[0], c[1]), cities_indexed, {})
+
+    shops["city"] = shops["city"].apply(lambda c: cities_dict[c])
+    return shops
+
+
+@lru_cache(maxsize=None)
+def dataset():
+    #data is not printable due to russian characters
+    items, categories, sales, shops = loadData()
+    mergedData = mergeData(items,
+                           categories,
+                           sales,
+                           add_city_column(shops))
+
+    finalData = mergedData.drop(axis=1,
+                                labels=["item_category_name",
+                                        "item_name",
+                                        "shop_name"])
+
+    finalData["date"] = finalData["date"].apply(split_date)
+
+    return finalData
 
