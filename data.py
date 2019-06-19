@@ -4,11 +4,14 @@ import datetime
 import calendar
 
 from functools import reduce, lru_cache
-from helpers import identity, append, mapl, mapt, add_key
+from helpers import identity, append, mapnp, add_key
 
 
 def merge(left, right, left_label, right_label=False):
-    return left.merge(right, "inner", left_on=left_label, right_on=(right_label if right_label else left_label))
+    return left.merge(right,
+                      "inner",
+                      left_on = left_label,
+                      right_on = (right_label if right_label else left_label))
 
 
 def loadData():
@@ -55,24 +58,28 @@ def encode_month(month):
 
 
 def split_date(date):
-    date_tuple = mapt(int, date.split("."))
+    return mapnp(int, date.split("."))
+
+def encode_date(date):
+    date_tuple = split_date(date)
     date_tuple = append(date_tuple, encode_month(date_tuple[1]))
     date_tuple = append(date_tuple, encode_weekday(weekday(date)))
 
     return date_tuple
 
-
 def add_city_column(shops):
     shops["city"] = shops["shop_name"].apply(lambda s: s.split(" ")[0])
+
     #Grabbing unique cities
     cities_set = set(shops["shop_name"].apply(lambda s: s.split(" ")[0]))
 
     #Indexing
-    cities_indexed = zip(cities, range(len(cities_set)))
+    cities_indexed = zip(cities_set, range(len(cities_set)))
 
-    #Pushing to dictionary {"city" : index}
+    #Creating  dictionary {"city" : index}
     cities_dict = reduce(lambda dic, c: add_key(dic, c[0], c[1]), cities_indexed, {})
 
+    #Substituting names with Indexes
     shops["city"] = shops["city"].apply(lambda c: cities_dict[c])
     return shops
 
@@ -86,12 +93,49 @@ def dataset():
                            sales,
                            add_city_column(shops))
 
-    finalData = mergedData.drop(axis=1,
-                                labels=["item_category_name",
-                                        "item_name",
-                                        "shop_name"])
+    #dropping text data
+    finalData = mergedData.drop(axis = 1,
+                                labels = ["item_category_name",
+                                          "item_name",
+                                          "shop_name"])
 
-    finalData["date"] = finalData["date"].apply(split_date)
-
+    #finalData["date"] = finalData["date"].apply(encode_date)
     return finalData
+
+
+def create_sales_csv():
+    d = dataset()
+
+    shop_data = d.drop(axis = 1,
+                       labels = ["date_block_num",
+                                 "item_price",
+                                 "city",
+                                 "item_category_id"])
+
+    new_date = shop_data["date"].str.split(".", expand = True)
+    shop_data["day"] = new_date[0]
+    shop_data["month"] = new_date[1]
+    shop_data["year"] = new_date[2]
+
+    shop_item_sales = shop_data.groupby(["shop_id", "year", "month", "day", "item_id"]).sum()
+    shop_item_sales.to_csv("./dataset/grouped_sales.csv")
+
+
+@lru_cache(maxsize=None)
+def sales():
+    s = pd.read_csv("./dataset/grouped_sales.csv")
+    return s
+
+
+def shop_sales(id):
+    s = sales()
+    return s.loc[s["shop_id"] == id]
+
+
+def get_items(dataset):
+    return set(dataset["item_id"])
+
+
+def get_shops(dataset):
+    return set(dataset["shop_id"])
 
