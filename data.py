@@ -127,6 +127,8 @@ def sales():
     return s
 
 
+
+@lru_cache(maxsize=None)
 def shop_sales(id):
     s = sales()
     return s.loc[s["shop_id"] == id]
